@@ -2,7 +2,9 @@
 
 /* wc: a classical word count program */
 void wc(FILE *fin) {
-  int lines = 0, words = 0, chars = 0, c = 0, state = WC_OUT;
+  int lines = 0, words = 0, chars = 0, c = 0;
+
+  enum wc_state { WC_OUT, WC_IN } state;
 
   while ((c = fgetc(fin)) != EOF) {
     chars++;

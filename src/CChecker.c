@@ -2,11 +2,20 @@
 
 /* remove all comments and check parenthesis integrity */
 void CChecker(FILE *fin) {
-  int brack, brace, quote, paren, c, state;
-  brace = brack = quote = paren = c = state = 0;
+  int brack, brace, quote, paren, c;
+  brace = brack = quote = paren = c = 0;
+
+  enum cc_state {
+    CCK_FILE,
+    CCK_SLASH,
+    CCK_STAR,
+    CCK_COMMENT,
+    CCK_BLOCKCMT,
+    CCK_BACKSLASH
+  } state = CCK_FILE;
+
   while ((c = fgetc(fin)) != EOF) {
     // finite state machine
-
     switch (state) {
       // inside block comment
     case CCK_BLOCKCMT:
