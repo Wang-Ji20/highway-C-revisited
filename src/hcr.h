@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <sys/types.h>
 
 /*
     Comment: When to use #define and when to use enum?
@@ -42,6 +43,10 @@ void CChecker(FILE *fin);
 void unix_panic(const char* msg);
 void posix_panic(int code, const char* msg);
 void panic(const char* msg);
+
+void unix_warning(const char* msg);
+void posix_warning(int code, const char* msg);
+void warning(const char* msg);
 
 // machine dependent type info
 void tminfo();

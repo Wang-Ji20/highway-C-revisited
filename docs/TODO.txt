@@ -1,0 +1,13 @@
+
+-- PART A:
+    K & R
+
+    - Learn examples in The C Programming Language
+    - Write a REPL to call functions
+
+-- PART B:
+    CSAPP
+    APUE
+
+    pending...
+    
