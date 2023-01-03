@@ -12,13 +12,13 @@ ssize_t Getline(char **area, size_t *n, FILE *f) {
 }
 
 int initCharBuffer(CharBuffer *cb) {
-  return cb->i32uBufferSize = cb->i32uInputSize = 0;
+  return cb->sztBufferSize = cb->ssztBufferSize = 0;
 }
 
 int readCharBuffer(CharBuffer *cb, FILE *fs) {
   ssize_t n;
 
-  if ((cb->i32uInputSize = Getline(&(cb->cBuffer), &(cb->i32uBufferSize), fs)) <
+  if ((cb->ssztBufferSize = Getline(&(cb->cBuffer), &(cb->sztBufferSize), fs)) <
       0) {
     unix_warning("readCharBuffer No Free Space");
     return -1;

@@ -2,6 +2,6 @@
 
 typedef struct {
   char *cBuffer;
-  size_t i32uBufferSize;
-  ssize_t i32uInputSize;
+  size_t sztBufferSize;
+  ssize_t ssztBufferSize;
 } CharBuffer;
