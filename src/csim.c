@@ -1,4 +1,5 @@
 #include "hcr.h"
+#define _POSIX_C_SOURCE 200809L
 
 static char *prog_name;
 
@@ -20,8 +21,8 @@ void usage() {
 }
 
 void csim_error(char msg[]) {
-  usage();
   fprintf(stderr, "%s: %s\n", prog_name, msg);
+  usage();
   exit(EXIT_FAILURE);
 }
 
@@ -33,7 +34,31 @@ void invalid_option(char opt) {
 
 void missing_args() { csim_error("Missing required command line argument"); }
 
-void readarg_num(int *n) {
+/*
+  utilities
+*/
+inline void debug() {
+  fprintf(stderr, "DEBUG %d", __LINE__);
+}
+
+inline __uint64_t getB(int b, __uint64_t addr) {
+  return (addr << (__WORDSIZE - b)) >> (__WORDSIZE - b); 
+}
+
+inline __uint64_t getMark(int t, __uint64_t addr) {
+  return (addr >> (__WORDSIZE - t));
+}
+
+inline __uint64_t getGroup(int t, int b, __uint64_t addr) {
+  return (addr << t) >> (t + b);
+}
+
+
+/*
+  read argument Helper functions
+*/
+
+void readarg_num(size_t *n) {
   errno = 0;
   *n = strtol(optarg, NULL, 10);
   if (errno) {
@@ -41,7 +66,7 @@ void readarg_num(int *n) {
   }
 }
 
-void readarg_file(FILE **f) {
+void readarg_openfile(FILE **f) {
   if (((*f) = fopen(optarg, "r")) == NULL) {
     missing_args();
   }
@@ -54,8 +79,93 @@ void Fclose(FILE *f) {
   }
 }
 
-int csim(int argc, char *argv[]) {
-  int opt, verbose, setIndexBits, Asso, blockBits;
+__uint64_t read_addr(char *f, char **next, int base) {
+  errno = 0;
+  __uint64_t num = 0;
+  if ((num = strtoll(f, next, base)), errno) {
+    perror("overflow in addr ");
+  }
+  return num;
+}
+
+/*
+  read trace file routines.
+*/
+
+typedef struct {
+  char type;
+  __uint64_t addr;
+  __uint64_t size;
+} trace_t;
+
+/*
+  read a single entry, type if success 0 bad line -1 EOF
+*/
+
+int read_trace_entry(FILE *f, trace_t *trace) {
+  char *buffer = NULL;
+  size_t linenum = 0;
+  int peek = 0;
+
+  if (getline(&buffer, &linenum, f) < 0) {
+    /* EOF or error */
+    free(buffer);
+    if (errno)
+      perror("cannot read trace entry");
+    return -1;
+  }
+  if (buffer[peek] == 'I') {
+    trace->type = 'I';
+  } else if (buffer[peek++] == ' ') {
+    switch (buffer[peek]) {
+
+    case 'M': case 'L': case 'S':
+      trace->type = buffer[peek];
+      break;
+
+    default:
+      fprintf(stderr, "bad instruction type\n");
+      return 0;
+    }
+  } else {
+    fprintf(stderr, "bad instruction type\n");
+    return 0;
+  }
+  peek += 2;
+
+  char *next = NULL;
+  trace->addr = read_addr(buffer + peek, &next, 16);
+  trace->size = read_addr(++next, NULL, 10);
+
+  free(buffer);
+
+  return trace->type;
+}
+
+/*
+  print one entry
+*/
+
+void print_entry(trace_t *t) {
+  printf("%c %lx,%ld\n", t->type, t->addr, t->size);
+}
+
+/*
+  read all trace entries, and prints them out
+*/
+
+void extract_entries(FILE *f) {
+  trace_t trace;
+  while (read_trace_entry(f, &trace) > -1) {
+    if (trace.type == 'I')
+      continue;
+    print_entry(&trace);
+  }
+  return;
+}
+
+int main(int argc, char *argv[]) {
+  size_t opt, verbose, setIndexBits, Asso, blockBits;
   FILE *traceFile;
 
   opt = verbose = setIndexBits = Asso = blockBits = 0;
@@ -81,9 +191,9 @@ int csim(int argc, char *argv[]) {
       break;
 
     case 't':
-      readarg_file(&traceFile);
+      readarg_openfile(&traceFile);
       break;
-    
+
     case 'v':
       verbose = 1;
       break;
@@ -98,7 +208,7 @@ int csim(int argc, char *argv[]) {
     missing_args();
   }
 
-  printf("s = %d, E = %d, b = %d, f = %c\n", setIndexBits, Asso, blockBits, fgetc(traceFile));
+  extract_entries(traceFile);
 
   Fclose(traceFile);
 
