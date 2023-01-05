@@ -1,7 +1,20 @@
-#include "hcr.h"
 #define _POSIX_C_SOURCE 200809L
+#include "cachelab.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 static char *prog_name;
+
+/* only contains tag */
+typedef __uint64_t cache_entry;
+
+cache_entry **cache_table;
 
 void usage() {
   fprintf(stderr,
@@ -37,22 +50,23 @@ void missing_args() { csim_error("Missing required command line argument"); }
 /*
   utilities
 */
-inline void debug() {
-  fprintf(stderr, "DEBUG %d", __LINE__);
+inline void debug() { fprintf(stderr, "DEBUG %d", __LINE__); }
+
+inline __uint64_t getB(size_t b, __uint64_t addr) {
+  return (addr << (__WORDSIZE - b)) >> (__WORDSIZE - b);
 }
 
-inline __uint64_t getB(int b, __uint64_t addr) {
-  return (addr << (__WORDSIZE - b)) >> (__WORDSIZE - b); 
-}
-
-inline __uint64_t getMark(int t, __uint64_t addr) {
+inline __uint64_t getMark(size_t g, size_t b, __uint64_t addr) {
+  size_t t = 64 - b - g;
   return (addr >> (__WORDSIZE - t));
 }
 
-inline __uint64_t getGroup(int t, int b, __uint64_t addr) {
+inline __uint64_t getGroup(size_t g, size_t b, __uint64_t addr) {
+  size_t t = 64 - b - g;
   return (addr << t) >> (t + b);
 }
 
+inline int max(size_t a, size_t b) { return (a > b) ? a : b; }
 
 /*
   read argument Helper functions
@@ -119,7 +133,9 @@ int read_trace_entry(FILE *f, trace_t *trace) {
   } else if (buffer[peek++] == ' ') {
     switch (buffer[peek]) {
 
-    case 'M': case 'L': case 'S':
+    case 'M':
+    case 'L':
+    case 'S':
       trace->type = buffer[peek];
       break;
 
@@ -162,6 +178,45 @@ void extract_entries(FILE *f) {
     print_entry(&trace);
   }
   return;
+}
+
+void init_ctable(size_t setbits) {
+  setbits = pow(2, setbits);
+  cache_table = calloc(setbits, __WORDSIZE);
+}
+
+void free_ctable(size_t setbits) {
+  setbits = pow(2, setbits);
+  for (size_t i = 0; i < setbits; i++) {
+    free(cache_table[i]);
+  }
+  free(cache_table);
+}
+
+int find_ctable(trace_t *t, size_t set, size_t bsize, size_t asso) {
+  size_t group = getGroup(set, bsize, t->addr);
+  size_t tag = getMark(set, bsize, t->addr);
+  if (cache_table[group] == NULL)
+    cache_table[group] = calloc(asso, sizeof(cache_entry));
+
+  size_t i = 0;
+  for (; i < asso; i++) {
+    if (cache_table[group][i] == tag) {
+      return 'H';
+    }
+    if (cache_table[group][i] == NULL)
+      break;
+  }
+
+  if (i != asso) {
+    cache_table[group][i] = tag;
+    return 'M';
+  }
+
+  /* LRU */
+  // TODO
+
+  return 'M';
 }
 
 int main(int argc, char *argv[]) {
@@ -208,7 +263,11 @@ int main(int argc, char *argv[]) {
     missing_args();
   }
 
+  init_ctable(setIndexBits);
+
   extract_entries(traceFile);
+
+  free_ctable(setIndexBits);
 
   Fclose(traceFile);
 
