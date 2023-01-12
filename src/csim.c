@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#include "cachelab.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -12,7 +11,8 @@
 static char *g_progName;
 static size_t g_curTimestamp;
 static size_t g_setBits, g_asso, g_blockBits, g_verbose, g_debug;
-enum access_status { MISS = 0x0, HIT = 0x10, EVICTION = 0x100 };
+static size_t g_hits, g_misses, g_evictions;
+enum access_status { MISS = 0x1, HIT = 0x10, EVICTION = 0x100 };
 
 /* cache entry */
 typedef struct {
@@ -48,9 +48,9 @@ void usage() {
           g_progName, g_progName, g_progName);
 }
 
-/*
+/***************************
   Error handling functions
-*/
+****************************/
 
 // prints error and quits, never return
 _Noreturn void csim_error(char msg[]) {
@@ -71,9 +71,9 @@ _Noreturn void missing_args() {
   csim_error("Missing required command line argument");
 }
 
-/*
+/***********
   utilities
-*/
+************/
 
 // for debug little utility
 inline static void debug(const char *s) {
@@ -81,7 +81,7 @@ inline static void debug(const char *s) {
     fprintf(stderr, "[DEBUG] %d %s", __LINE__, s);
 }
 
-inline static void verbose(trace_t *t, char flags) {
+inline static void verbose(trace_t *t, int flags) {
   if (g_verbose) {
     printf("%c %lx,%ld", t->type, t->addr, t->size);
     if (flags & MISS)
@@ -113,9 +113,9 @@ inline static size_t getSet(size_t addr) {
 // get max
 inline int max(size_t a, size_t b) { return (a > b) ? a : b; }
 
-/*
+/*******************************
   read argument Helper functions
-*/
+********************************/
 
 // read a number from terminal
 size_t readarg_num() {
@@ -155,14 +155,100 @@ size_t read_num(char *f, char **next, int base) {
   return num;
 }
 
-/*
-  read trace file routines.
-*/
+/**************************
+   cache table functions
+***************************/
 
-/*
-  read a single entry, type if success; 0 bad line; -1 EOF
-*/
+// init cache table, no return
+void init_ctable() {
+  size_t sets = pow(2, g_setBits);
+  g_cacheTable = calloc(sets, __WORDSIZE);
+}
 
+// free cache table
+void free_ctable() {
+  size_t sets = pow(2, g_setBits);
+  for (size_t i = 0; i < sets; i++) {
+    free(g_cacheTable[i]);
+  }
+  free(g_cacheTable);
+}
+
+// wrapper function for calloc
+void *Calloc(size_t ele_num, size_t ele_size) {
+  void *retptr;
+  if ((retptr = calloc(ele_num, ele_size)) == NULL)
+    missing_args();
+  return retptr;
+}
+
+// setup a centry
+cache_entry setup_centry(size_t tag) {
+  cache_entry ce;
+  ce.valid = 1;
+  ce.cacheTag = tag;
+  ce.timestamp = g_curTimestamp++;
+  return ce;
+}
+
+int lru(size_t group) {
+  size_t ts = __SIZE_MAX__;
+  int idx = 0;
+  for (size_t i = 0; i < g_asso; i++)
+  {
+    if(g_cacheTable[group][i].timestamp < ts){
+      idx = i;
+      ts = g_cacheTable[group][i].timestamp;
+    }
+  }
+  return idx;
+}
+
+/**
+ * @brief search the cache table, insert when not exist
+ *
+ * @param t the trace entry, our target
+ * @return HIT if hit, MISS if miss
+ */
+int find_ctable(trace_t *t) {
+  size_t group = getSet(t->addr);
+  size_t tag = getTag(t->addr);
+
+  if (g_cacheTable[group] == NULL)
+    g_cacheTable[group] = Calloc(g_asso, sizeof(cache_entry));
+
+  int insert_point = -1;
+  for (size_t i = 0; i < g_asso; i++) {
+    if (g_cacheTable[group][i].valid &&
+        g_cacheTable[group][i].cacheTag == tag) {
+      g_cacheTable[group][i].timestamp = g_curTimestamp++;
+      g_hits++;
+      return HIT;
+    }
+    if (!g_cacheTable[group][i].valid && (insert_point == -1))
+      insert_point = i;
+  }
+
+  if (insert_point > -1) {
+    g_cacheTable[group][insert_point] = setup_centry(tag);
+    g_misses++;
+    return MISS;
+  }
+
+  /* LRU */
+  insert_point = lru(group);
+  g_cacheTable[group][insert_point] = setup_centry(tag);
+
+  g_misses++;
+  g_evictions++;
+  return MISS | EVICTION;
+}
+
+/************************************************
+  read and process trace file routines.
+*************************************************/
+
+// read a single entry, type if success; 0 bad line; -1 EOF
 int read_trace_entry(FILE *f, trace_t *trace) {
   char *buffer = NULL;
   size_t linenum = 0;
@@ -206,14 +292,16 @@ int read_trace_entry(FILE *f, trace_t *trace) {
 }
 
 // print one entry
-void print_entry(const trace_t *t) {
-  printf("%c %lx,%ld\n", t->type, t->addr, t->size);
+inline static void print_entry(const trace_t *t) {
+  if (g_debug)
+    printf("%c %lx,%ld\n", t->type, t->addr, t->size);
 }
 
 // print one entry, in much detail
-void print_entryd(const trace_t *t) {
-  printf("%lx %lx %lx %lx\n", t->addr, getTag(t->addr), getSet(t->addr),
-         getB(t->addr));
+inline static void print_entryd(const trace_t *t) {
+  if (g_debug)
+    printf("%lx %lx %lx %lx\n", t->addr, getTag(t->addr), getSet(t->addr),
+           getB(t->addr));
 }
 
 // read all trace entries, and prints them out
@@ -224,74 +312,15 @@ void extract_entries(FILE *f) {
       continue;
     print_entry(&trace);
     print_entryd(&trace);
+    int flags = find_ctable(&trace);
+    if (trace.type == 'M')
+      flags |= find_ctable(&trace);
+    verbose(&trace, flags);
   }
   return;
 }
 
-// init cache table, no return
-void init_ctable() {
-  size_t sets = pow(2, g_setBits);
-  g_cacheTable = calloc(sets, __WORDSIZE);
-}
-
-// free cache table
-void free_ctable() {
-  size_t sets = pow(2, g_setBits);
-  for (size_t i = 0; i < sets; i++) {
-    free(g_cacheTable[i]);
-  }
-  free(g_cacheTable);
-}
-
-// wrapper function for calloc
-void *Calloc(size_t ele_num, size_t ele_size) {
-  void *retptr;
-  if ((retptr = calloc(ele_num, ele_size)) == NULL)
-    missing_args();
-  return retptr;
-}
-
-// setup a centry
-cache_entry setup_centry(size_t tag) {
-  cache_entry ce;
-  ce.valid = 1;
-  ce.cacheTag = tag;
-  ce.timestamp = g_curTimestamp++;
-  return ce;
-}
-
-/**
- * @brief search the cache table, insert when not exist
- *
- * @param t the trace entry, our target
- * @return 'H' if hit, 'M' if miss
- */
-int find_ctable(trace_t *t) {
-  size_t group = getSet(t->addr);
-  size_t tag = getTag(t->addr);
-  if (g_cacheTable[group] == NULL)
-    g_cacheTable[group] = Calloc(g_asso, sizeof(cache_entry));
-
-  int insert_point = -1;
-  for (size_t i = 0; i < g_asso; i++) {
-    if (g_cacheTable[group][i].cacheTag == tag) {
-      return 'H';
-    }
-    if (!g_cacheTable[group][i].valid && (insert_point == -1))
-      insert_point = i;
-  }
-
-  if (insert_point > -1) {
-    g_cacheTable[group][insert_point] = setup_centry(tag);
-    return 'M';
-  }
-
-  /* LRU */
-  // TODO
-
-  return 'M';
-}
-
+// main function
 int main(int argc, char *argv[]) {
   size_t opt;
   FILE *traceFile;
@@ -350,5 +379,6 @@ int main(int argc, char *argv[]) {
 
   Fclose(traceFile);
 
+  printSummary(g_hits, g_misses, g_evictions);
   return 0;
 }
