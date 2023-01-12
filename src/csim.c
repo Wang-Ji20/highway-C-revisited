@@ -9,12 +9,27 @@
 #include <string.h>
 #include <unistd.h>
 
-static char *prog_name;
+static char *g_progName;
+static size_t g_curTimestamp;
+static size_t g_setBits, g_asso, g_blockBits, g_verbose, g_debug;
+enum access_status { MISS = 0x0, HIT = 0x10, EVICTION = 0x100 };
 
-/* only contains tag */
-typedef __uint64_t cache_entry;
+/* cache entry */
+typedef struct {
+  char valid;
+  size_t cacheTag;  /* address */
+  size_t timestamp; /* for LRU */
+} cache_entry;
 
-cache_entry **cache_table;
+cache_entry **g_cacheTable; /* lazy allocation */
+
+typedef struct {
+  char type;
+  size_t addr;
+  size_t size;
+} trace_t;
+
+/* shows usage information */
 
 void usage() {
   fprintf(stderr,
@@ -30,62 +45,99 @@ void usage() {
           "Examples:\n"
           "  linux>  %s -s 4 -E 1 -b 4 -t traces/yi.trace\n"
           "  linux>  %s -v -s 8 -E 2 -b 4 -t traces/yi.trace\n",
-          prog_name, prog_name, prog_name);
+          g_progName, g_progName, g_progName);
 }
 
-void csim_error(char msg[]) {
-  fprintf(stderr, "%s: %s\n", prog_name, msg);
+/*
+  Error handling functions
+*/
+
+// prints error and quits, never return
+_Noreturn void csim_error(char msg[]) {
+  fprintf(stderr, "%s: %s\n", g_progName, msg);
   usage();
   exit(EXIT_FAILURE);
 }
 
-void invalid_option(char opt) {
+// prints "invalid option" and quits, never return
+_Noreturn void invalid_option(char opt) {
   char invalid_msg[40];
   sprintf(invalid_msg, "invalid option -- '%c'", opt);
   csim_error(invalid_msg);
 }
 
-void missing_args() { csim_error("Missing required command line argument"); }
+// prints "missing args" and quits, never return
+_Noreturn void missing_args() {
+  csim_error("Missing required command line argument");
+}
 
 /*
   utilities
 */
-inline void debug() { fprintf(stderr, "DEBUG %d", __LINE__); }
 
-inline __uint64_t getB(size_t b, __uint64_t addr) {
-  return (addr << (__WORDSIZE - b)) >> (__WORDSIZE - b);
+// for debug little utility
+inline static void debug(const char *s) {
+  if (g_debug)
+    fprintf(stderr, "[DEBUG] %d %s", __LINE__, s);
 }
 
-inline __uint64_t getMark(size_t g, size_t b, __uint64_t addr) {
-  size_t t = 64 - b - g;
-  return (addr >> (__WORDSIZE - t));
+inline static void verbose(trace_t *t, char flags) {
+  if (g_verbose) {
+    printf("%c %lx,%ld", t->type, t->addr, t->size);
+    if (flags & MISS)
+      printf(" miss");
+    if (flags & EVICTION)
+      printf(" eviction");
+    if (flags & HIT)
+      printf(" hit");
+    printf("\n");
+  }
 }
 
-inline __uint64_t getGroup(size_t g, size_t b, __uint64_t addr) {
-  size_t t = 64 - b - g;
-  return (addr << t) >> (t + b);
+// get the B area of a cache addr
+inline static size_t getB(size_t addr) {
+  return (addr << (__WORDSIZE - g_blockBits)) >> (__WORDSIZE - g_blockBits);
 }
 
+// get the Tag area of a cache addr
+inline static size_t getTag(size_t addr) {
+  return (addr >> (g_blockBits + g_setBits));
+}
+
+// get the set area of a cache addr
+inline static size_t getSet(size_t addr) {
+  size_t t = __WORDSIZE - g_setBits - g_blockBits;
+  return (addr << t) >> (t + g_blockBits);
+}
+
+// get max
 inline int max(size_t a, size_t b) { return (a > b) ? a : b; }
 
 /*
   read argument Helper functions
 */
 
-void readarg_num(size_t *n) {
+// read a number from terminal
+size_t readarg_num() {
+  size_t n = 0;
   errno = 0;
-  *n = strtol(optarg, NULL, 10);
+  n = strtol(optarg, NULL, 10);
   if (errno) {
     missing_args();
   }
+  return n;
 }
 
-void readarg_openfile(FILE **f) {
-  if (((*f) = fopen(optarg, "r")) == NULL) {
+// open a file from terminal
+FILE *readarg_openfile() {
+  FILE *f;
+  if (((f) = fopen(optarg, "r")) == NULL) {
     missing_args();
   }
+  return f;
 }
 
+// close a file, never return
 void Fclose(FILE *f) {
   if (fclose(f) == EOF) {
     perror("Fclose ");
@@ -93,9 +145,10 @@ void Fclose(FILE *f) {
   }
 }
 
-__uint64_t read_addr(char *f, char **next, int base) {
+// read a number from a string
+size_t read_num(char *f, char **next, int base) {
   errno = 0;
-  __uint64_t num = 0;
+  size_t num = 0;
   if ((num = strtoll(f, next, base)), errno) {
     perror("overflow in addr ");
   }
@@ -106,14 +159,8 @@ __uint64_t read_addr(char *f, char **next, int base) {
   read trace file routines.
 */
 
-typedef struct {
-  char type;
-  __uint64_t addr;
-  __uint64_t size;
-} trace_t;
-
 /*
-  read a single entry, type if success 0 bad line -1 EOF
+  read a single entry, type if success; 0 bad line; -1 EOF
 */
 
 int read_trace_entry(FILE *f, trace_t *trace) {
@@ -150,66 +197,92 @@ int read_trace_entry(FILE *f, trace_t *trace) {
   peek += 2;
 
   char *next = NULL;
-  trace->addr = read_addr(buffer + peek, &next, 16);
-  trace->size = read_addr(++next, NULL, 10);
+  trace->addr = read_num(buffer + peek, &next, 16);
+  trace->size = read_num(++next, NULL, 10);
 
   free(buffer);
 
   return trace->type;
 }
 
-/*
-  print one entry
-*/
-
-void print_entry(trace_t *t) {
+// print one entry
+void print_entry(const trace_t *t) {
   printf("%c %lx,%ld\n", t->type, t->addr, t->size);
 }
 
-/*
-  read all trace entries, and prints them out
-*/
+// print one entry, in much detail
+void print_entryd(const trace_t *t) {
+  printf("%lx %lx %lx %lx\n", t->addr, getTag(t->addr), getSet(t->addr),
+         getB(t->addr));
+}
 
+// read all trace entries, and prints them out
 void extract_entries(FILE *f) {
   trace_t trace;
   while (read_trace_entry(f, &trace) > -1) {
     if (trace.type == 'I')
       continue;
     print_entry(&trace);
+    print_entryd(&trace);
   }
   return;
 }
 
-void init_ctable(size_t setbits) {
-  setbits = pow(2, setbits);
-  cache_table = calloc(setbits, __WORDSIZE);
+// init cache table, no return
+void init_ctable() {
+  size_t sets = pow(2, g_setBits);
+  g_cacheTable = calloc(sets, __WORDSIZE);
 }
 
-void free_ctable(size_t setbits) {
-  setbits = pow(2, setbits);
-  for (size_t i = 0; i < setbits; i++) {
-    free(cache_table[i]);
+// free cache table
+void free_ctable() {
+  size_t sets = pow(2, g_setBits);
+  for (size_t i = 0; i < sets; i++) {
+    free(g_cacheTable[i]);
   }
-  free(cache_table);
+  free(g_cacheTable);
 }
 
-int find_ctable(trace_t *t, size_t set, size_t bsize, size_t asso) {
-  size_t group = getGroup(set, bsize, t->addr);
-  size_t tag = getMark(set, bsize, t->addr);
-  if (cache_table[group] == NULL)
-    cache_table[group] = calloc(asso, sizeof(cache_entry));
+// wrapper function for calloc
+void *Calloc(size_t ele_num, size_t ele_size) {
+  void *retptr;
+  if ((retptr = calloc(ele_num, ele_size)) == NULL)
+    missing_args();
+  return retptr;
+}
 
-  size_t i = 0;
-  for (; i < asso; i++) {
-    if (cache_table[group][i] == tag) {
+// setup a centry
+cache_entry setup_centry(size_t tag) {
+  cache_entry ce;
+  ce.valid = 1;
+  ce.cacheTag = tag;
+  ce.timestamp = g_curTimestamp++;
+  return ce;
+}
+
+/**
+ * @brief search the cache table, insert when not exist
+ *
+ * @param t the trace entry, our target
+ * @return 'H' if hit, 'M' if miss
+ */
+int find_ctable(trace_t *t) {
+  size_t group = getSet(t->addr);
+  size_t tag = getTag(t->addr);
+  if (g_cacheTable[group] == NULL)
+    g_cacheTable[group] = Calloc(g_asso, sizeof(cache_entry));
+
+  int insert_point = -1;
+  for (size_t i = 0; i < g_asso; i++) {
+    if (g_cacheTable[group][i].cacheTag == tag) {
       return 'H';
     }
-    if (cache_table[group][i] == NULL)
-      break;
+    if (!g_cacheTable[group][i].valid && (insert_point == -1))
+      insert_point = i;
   }
 
-  if (i != asso) {
-    cache_table[group][i] = tag;
+  if (insert_point > -1) {
+    g_cacheTable[group][insert_point] = setup_centry(tag);
     return 'M';
   }
 
@@ -220,13 +293,15 @@ int find_ctable(trace_t *t, size_t set, size_t bsize, size_t asso) {
 }
 
 int main(int argc, char *argv[]) {
-  size_t opt, verbose, setIndexBits, Asso, blockBits;
+  size_t opt;
   FILE *traceFile;
 
-  opt = verbose = setIndexBits = Asso = blockBits = 0;
-  prog_name = argv[0];
+  opt = g_verbose = g_asso = g_blockBits = g_curTimestamp = g_setBits =
+      g_debug = 0;
 
-  while ((opt = getopt(argc, argv, "hvs:E:b:t:")) != -1) {
+  g_progName = argv[0];
+
+  while ((opt = getopt(argc, argv, "hdvs:E:b:t:")) != -1) {
     switch (opt) {
     case 'h':
       usage();
@@ -234,23 +309,27 @@ int main(int argc, char *argv[]) {
       break;
 
     case 's':
-      readarg_num(&setIndexBits);
+      g_setBits = readarg_num();
       break;
 
     case 'E':
-      readarg_num(&Asso);
+      g_asso = readarg_num();
       break;
 
     case 'b':
-      readarg_num(&blockBits);
+      g_blockBits = readarg_num();
       break;
 
     case 't':
-      readarg_openfile(&traceFile);
+      traceFile = readarg_openfile();
       break;
 
     case 'v':
-      verbose = 1;
+      g_verbose = 1;
+      break;
+
+    case 'd':
+      g_debug = 1;
       break;
 
     default:
@@ -259,15 +338,15 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (!setIndexBits || !Asso || !blockBits || !traceFile) {
+  if (!g_setBits || !g_asso || !g_blockBits || !traceFile) {
     missing_args();
   }
 
-  init_ctable(setIndexBits);
+  init_ctable();
 
   extract_entries(traceFile);
 
-  free_ctable(setIndexBits);
+  free_ctable();
 
   Fclose(traceFile);
 
