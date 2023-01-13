@@ -31,7 +31,7 @@ typedef struct {
 
 /* shows usage information */
 
-void usage() {
+static void usage() {
   fprintf(stderr,
           "Usage: %s [-hv] -s <num> -E <num> -b <num> -t <file>\n"
           "Options:\n"
@@ -194,9 +194,8 @@ cache_entry setup_centry(size_t tag) {
 int lru(size_t group) {
   size_t ts = __SIZE_MAX__;
   int idx = 0;
-  for (size_t i = 0; i < g_asso; i++)
-  {
-    if(g_cacheTable[group][i].timestamp < ts){
+  for (size_t i = 0; i < g_asso; i++) {
+    if (g_cacheTable[group][i].timestamp < ts) {
       idx = i;
       ts = g_cacheTable[group][i].timestamp;
     }
@@ -320,8 +319,12 @@ void extract_entries(FILE *f) {
   return;
 }
 
+void printSummary(size_t hits, size_t misses, size_t evictions) {
+  printf("hits:%zu misses:%zu evictions:%zu\n", hits, misses, evictions);
+}
+
 // main function
-int main(int argc, char *argv[]) {
+int csim(int argc, char *argv[]) {
   size_t opt;
   FILE *traceFile;
 

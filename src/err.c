@@ -43,7 +43,7 @@ void posix_warning(int code, const char *msg) {
 }
 
 /*
- * normal panic
+ * normal warning
  */
 void warning(const char *msg) { fprintf(stderr, "[APP warning] %s\n", msg); }
 
