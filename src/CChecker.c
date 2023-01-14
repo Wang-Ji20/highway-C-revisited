@@ -107,3 +107,40 @@ void CChecker(FILE *fin) {
     unix_panic("wrong grammar!\n");
   }
 }
+
+static void usage() {
+  puts("CChecker: input the name of a c source code, checks if all \n"
+       "parenthesis meets.\n"
+       "args: -f file\n"
+       "      -h show this help\n");
+}
+
+void cmd_CChecker(int argc, char *argv[]) {
+  size_t opt = 0;
+  FILE *checkfile = NULL;
+
+  while ((opt = getopt(argc, argv, "fh")) != -1) {
+    switch (opt) {
+    case 'h':
+      usage();
+      exit(EXIT_SUCCESS);
+      break;
+    case 'f':
+      checkfile = readarg_openfile();
+      break;
+
+    default:
+      invalid_option(opt, usage);
+      break;
+    }
+  }
+
+  if (!checkfile)
+    missing_args(usage);
+
+  CChecker(checkfile);
+
+  Fclose(checkfile);
+
+  exit(EXIT_SUCCESS);
+}

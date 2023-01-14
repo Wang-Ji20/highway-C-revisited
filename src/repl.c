@@ -17,7 +17,6 @@ int initCharBuffer(CharBuffer *cb) {
 }
 
 int readCharBuffer(CharBuffer *cb, FILE *fs) {
-  ssize_t n;
 
   if ((cb->ssztBufferSize = Getline(&(cb->cBuffer), &(cb->sztBufferSize), fs)) <
       0) {
@@ -32,13 +31,29 @@ int readCharBuffer(CharBuffer *cb, FILE *fs) {
 
 void freeCharBuffer(CharBuffer *cb) { free(cb->cBuffer); }
 
-void prompt() { fputs(ANSI_COLOR_CYAN "% " ANSI_RESET_ALL, stdout); }
+void flushall() {
+  fflush(stdout);
+  fflush(stderr);
+}
 
-/* signal handlers */
+void prompt() {
+  fputs(ANSI_COLOR_CYAN "% " ANSI_RESET_ALL, stdout);
+  flushall();
+}
 
-void sigint_handler(int sig) { write(STDERR_FILENO, "SIGINT\n", 8); }
+void registerSIGHNDs();
 
-void registerSIGHNDs() { Signal(SIGINT, sigint_handler); }
+void eval(const char *cmdline) {
+  char *argv[MAXARGS];
+  int argc;
+  pid_t pid;
+
+  parseline(cmdline, argv, &argc);
+  if ((pid = Fork()) == 0) {
+    sfindFunc(argv[0])(argc, argv);
+  }
+  wait(NULL);
+}
 
 int main() {
   printf("~ init REPL\n");
@@ -47,9 +62,11 @@ int main() {
   CharBuffer cbShellInput;
   initCharBuffer(&cbShellInput);
   while (prompt(), readCharBuffer(&cbShellInput, stdin) > -1) {
-    fputs(cbShellInput.cBuffer, stdout);
+    eval(cbShellInput.cBuffer);
+    // fputs(cbShellInput.cBuffer, stdout);
   }
   freeCharBuffer(&cbShellInput);
+  flushall();
 
   return 0;
 }

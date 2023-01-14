@@ -11,3 +11,8 @@ handler_t *Signal(int signum, handler_t *handler) {
   }
   return oldaction.sa_handler;
 }
+/* signal handlers */
+
+void sigint_handler(int sig) { write(STDERR_FILENO, "SIGINT\n", 8); }
+
+void registerSIGHNDs() { Signal(SIGINT, sigint_handler); }

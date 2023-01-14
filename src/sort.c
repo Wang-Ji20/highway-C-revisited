@@ -1,7 +1,7 @@
 #include "hcr.h"
 
 void shellsort(int v[], int n) {
-  int gap, i, j, temp;
+  int gap, i, j;
 
   for (gap = n / 2; gap > 0; gap /= 2)
     for (i = gap; i < n; i++)
