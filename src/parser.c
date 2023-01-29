@@ -1,17 +1,36 @@
+#include "hcr.h"
 #include "repl.h"
 
 const size_t MAXLINE = 1024;
 const size_t MAXARGS = 32;
 
+/* lexer read byte string from iterator
+ *  return the first element of token
+ *  set delim pointer to the last element of tokrn
+ */
 char *lexer(char *iterator, char **delim) {
-  for (; (*iterator) == ' '; iterator++)
+  /* skip all spaces */
+  for (; (*iterator) && (*iterator) == ' '; iterator++)
     ;
+
+  if (*iterator == '\0') {
+    *delim = NULL;
+    return NULL;
+  }
+
+  /* if ' get the next ' */
   if (*iterator == '\'') {
     iterator++;
     *delim = strchr(iterator, '\'');
   } else {
     *delim = strchr(iterator, ' ');
   }
+
+  /* token is a string. so add \0 */
+  **delim = '\0';
+
+  fdebug("get a token %s\n", iterator);
+
   return iterator;
 }
 
@@ -22,6 +41,7 @@ int parseline(const char *cmdline, char **argv, int *argc) {
   char *delim;
 
   strcpy(iterator, cmdline);
+  fdebug("start parse line length %d:\n%s", cmdlineLen, iterator);
 
   /* build the argv list */
   int t_argc = 0;
@@ -30,13 +50,16 @@ int parseline(const char *cmdline, char **argv, int *argc) {
 
   for (; delim != NULL; iterator = lexer(iterator, &delim)) {
     argv[t_argc++] = iterator;
-    *delim = '\0';
     iterator = delim + 1;
   }
 
   argv[t_argc] = NULL;
   if ((*argc = t_argc) == 0)
     return 1;
+
+  for (int i = 0; i < t_argc; i++) {
+    fdebug("argv[%d]: %s\n", i, argv[i]);
+  }
 
   return 0;
 }

@@ -1,5 +1,12 @@
 #include "repl.h"
+#include "hcr.h"
+#include <bits/getopt_core.h>
+#include <stdio.h>
 
+/* global variable showing whether we are in debug mode. */
+int m_debug = 0;
+
+/* wrapper for getline library function */
 ssize_t Getline(char **area, size_t *n, FILE *f) {
   ssize_t inputsz;
 
@@ -43,6 +50,7 @@ void prompt() {
 
 void registerSIGHNDs();
 
+/* Evaluate input */
 void eval(const char *cmdline) {
   char *argv[MAXARGS];
   int argc;
@@ -50,15 +58,16 @@ void eval(const char *cmdline) {
 
   parseline(cmdline, argv, &argc);
   if ((pid = Fork()) == 0) {
+    fdebug("forked!\n");
     sfindFunc(argv[0])(argc, argv);
+    flushall();
   }
-  wait(NULL);
+  Wait(NULL);
+  flushall();
 }
 
-int main() {
-  printf("~ init REPL\n");
-  registerSIGHNDs();
-
+/* an infinite loop. terminates on EOF */
+void repl() {
   CharBuffer cbShellInput;
   initCharBuffer(&cbShellInput);
   while (prompt(), readCharBuffer(&cbShellInput, stdin) > -1) {
@@ -67,6 +76,27 @@ int main() {
   }
   freeCharBuffer(&cbShellInput);
   flushall();
+}
+
+int main(int argc, char **argv) {
+  int opt;
+
+  /* init */
+  printf("~ init REPL\n");
+  registerSIGHNDs();
+
+  /* get options */
+  while ((opt = getopt(argc, argv, "d")) != -1) {
+    switch (opt) {
+    case 'd':
+      m_debug = 1;
+      break;
+    default:
+      break;
+    }
+  }
+
+  repl();
 
   return 0;
 }

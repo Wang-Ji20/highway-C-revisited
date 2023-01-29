@@ -99,6 +99,7 @@ void missing_args(usageFunc *uf);
 // function wrappers
 pid_t Fork(void);
 void Exec(const char *path, char *const *argv, char *const *envp);
+void Wait(int *stat_loc);
 
 // command line utilities
 size_t readarg_num();
@@ -129,4 +130,6 @@ void reverse(char s[]);
 // driver
 
 // debugging
+extern int m_debug;
 #define DEBUG fprintf(stderr, "line: %d\n", __LINE__);
+void fdebug(const char *format, ...);

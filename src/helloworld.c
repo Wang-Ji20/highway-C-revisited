@@ -5,4 +5,8 @@ int hello() {
   return 0;
 }
 
-void cmd_hello(int argc, char **argv) { exit(hello()); }
+void cmd_hello(int argc, char **argv) {
+  fdebug("call command hello");
+  hello();
+  exit(hello());
+}

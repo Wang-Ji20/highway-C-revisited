@@ -74,5 +74,14 @@ void missing_args(usageFunc *uf) {
 }
 
 /*
- *   error recovery functions
+ *   debugging functions
  */
+void fdebug(const char *format, ...) {
+  if (!m_debug)
+    return;
+  va_list argList;
+  va_start(argList, format);
+  vfprintf(stderr, format, argList);
+  va_end(argList);
+  fflush(stderr);
+}
