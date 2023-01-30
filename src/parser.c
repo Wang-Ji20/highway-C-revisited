@@ -1,5 +1,6 @@
 #include "hcr.h"
 #include "repl.h"
+#include <string.h>
 
 const size_t MAXLINE = 1024;
 const size_t MAXARGS = 32;
@@ -34,13 +35,11 @@ char *lexer(char *iterator, char **delim) {
   return iterator;
 }
 
-int parseline(const char *cmdline, char **argv, int *argc) {
+int parseline(char *cmdline, char **argv, int *argc) {
   int cmdlineLen = strlen(cmdline);
-  char array[MAXLINE];
-  char *iterator = array;
+  char *iterator = cmdline;
   char *delim;
 
-  strcpy(iterator, cmdline);
   fdebug("start parse line length %d:\n%s", cmdlineLen, iterator);
 
   /* build the argv list */
@@ -58,13 +57,14 @@ int parseline(const char *cmdline, char **argv, int *argc) {
     return 1;
 
   for (int i = 0; i < t_argc; i++) {
-    fdebug("argv[%d]: %s\n", i, argv[i]);
+    fdebug("argv[%d] size %d : %s\n", i, strlen(argv[i]), argv[i]);
   }
 
   return 0;
 }
 
 commonFunc *sfindFunc(const char *name) {
+  fdebug("check command for %s\n", name);
   if (!strcmp(name, "cchecker")) {
     return cmd_CChecker;
   } else if (!strcmp(name, "csim")) {
@@ -72,6 +72,9 @@ commonFunc *sfindFunc(const char *name) {
   } else if (!strcmp(name, "hello")) {
     return cmd_hello;
   }
+
+
+  fdebug("nomatch!\n");
 
   return NULL;
 }

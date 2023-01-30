@@ -51,7 +51,7 @@ void prompt() {
 void registerSIGHNDs();
 
 /* Evaluate input */
-void eval(const char *cmdline) {
+void eval(char *cmdline) {
   char *argv[MAXARGS];
   int argc;
   pid_t pid;

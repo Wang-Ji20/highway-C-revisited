@@ -17,5 +17,5 @@ typedef void handler_t(int);
 
 handler_t *Signal(int signum, handler_t *handler);
 
-int parseline(const char* cmdline, char **argv, int* argc);
+int parseline(char* cmdline, char **argv, int* argc);
 commonFunc* sfindFunc(const char* name);
