@@ -1,7 +1,10 @@
+// This file contains a simple interpreter.
+
 #include "repl.h"
 #include "hcr.h"
 #include <bits/getopt_core.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* global variable showing whether we are in debug mode. */
 int m_debug = 0;
@@ -20,12 +23,12 @@ ssize_t Getline(char **area, size_t *n, FILE *f) {
 }
 
 int initCharBuffer(CharBuffer *cb) {
-  return cb->sztBufferSize = cb->ssztBufferSize = 0;
+  return cb->sztBufferCap = cb->ssztBufferSize = 0;
 }
 
 int readCharBuffer(CharBuffer *cb, FILE *fs) {
 
-  if ((cb->ssztBufferSize = Getline(&(cb->cBuffer), &(cb->sztBufferSize), fs)) <
+  if ((cb->ssztBufferSize = Getline(&(cb->cBuffer), &(cb->sztBufferCap), fs)) <
       0) {
     if (errno)
       unix_panic("readCharBuffer No Free Space");
@@ -38,17 +41,20 @@ int readCharBuffer(CharBuffer *cb, FILE *fs) {
 
 void freeCharBuffer(CharBuffer *cb) { free(cb->cBuffer); }
 
-void flushall() {
-  fflush(stdout);
-  fflush(stderr);
-}
-
 void prompt() {
   fputs(ANSI_COLOR_CYAN "% " ANSI_RESET_ALL, stdout);
-  flushall();
+  fflush(stdout);
 }
 
 void registerSIGHNDs();
+
+int builtinCmd(const char *cmd) {
+  if (!strcmp(cmd, "quit")) {
+    exit(EXIT_SUCCESS);
+    return 1;
+  }
+  return 0;
+}
 
 /* Evaluate input */
 void eval(char *cmdline) {
@@ -57,13 +63,17 @@ void eval(char *cmdline) {
   pid_t pid;
 
   parseline(cmdline, argv, &argc);
+
+  if (builtinCmd(argv[0]))
+    return;
+
   if ((pid = Fork()) == 0) {
     fdebug("forked!\n");
     sfindFunc(argv[0])(argc, argv);
-    flushall();
+    fflush(stdout);
   }
   Wait(NULL);
-  flushall();
+  fflush(stdout);
 }
 
 /* an infinite loop. terminates on EOF */
@@ -75,7 +85,7 @@ void repl() {
     // fputs(cbShellInput.cBuffer, stdout);
   }
   freeCharBuffer(&cbShellInput);
-  flushall();
+  fflush(stdout);
 }
 
 int main(int argc, char **argv) {

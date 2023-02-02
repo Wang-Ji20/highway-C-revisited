@@ -9,7 +9,7 @@ extern const size_t MAXARGS;
 
 typedef struct {
   char *cBuffer;
-  size_t sztBufferSize;
+  size_t sztBufferCap;
   ssize_t ssztBufferSize;
 } CharBuffer;
 
@@ -17,5 +17,5 @@ typedef void handler_t(int);
 
 handler_t *Signal(int signum, handler_t *handler);
 
-int parseline(char* cmdline, char **argv, int* argc);
-commonFunc* sfindFunc(const char* name);
+int parseline(char *cmdline, char **argv, int *argc);
+commonFunc *sfindFunc(const char *name);

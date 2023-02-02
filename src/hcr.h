@@ -111,6 +111,7 @@ size_t read_num(char *f, char **next, int base);
 commonFunc cmd_CChecker;
 commonFunc cmd_csim;
 commonFunc cmd_hello;
+commonFunc cmd_grep;
 
 // machine dependent type info
 void tminfo();

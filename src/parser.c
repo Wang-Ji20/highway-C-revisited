@@ -1,3 +1,10 @@
+// This file contains a simple lexer & parser for command line
+// arguments processing.
+// They removes all redundant spaces and trailing '\n', then
+// save arguments in argv, and arguments' count in argc.
+// NB. string between a pair of single quote is regarded as
+// one argument.
+
 #include "hcr.h"
 #include "repl.h"
 #include <string.h>
@@ -71,8 +78,9 @@ commonFunc *sfindFunc(const char *name) {
     return cmd_csim;
   } else if (!strcmp(name, "hello")) {
     return cmd_hello;
+  } else if (!strcmp(name, "grep")) {
+    return cmd_grep;
   }
-
 
   fdebug("nomatch!\n");
 
