@@ -112,6 +112,7 @@ commonFunc cmd_CChecker;
 commonFunc cmd_csim;
 commonFunc cmd_hello;
 commonFunc cmd_grep;
+commonFunc cmd_revpol;
 
 // machine dependent type info
 void tminfo();

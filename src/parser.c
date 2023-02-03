@@ -80,6 +80,8 @@ commonFunc *sfindFunc(const char *name) {
     return cmd_hello;
   } else if (!strcmp(name, "grep")) {
     return cmd_grep;
+  } else if (!strcmp(name, "revpol")) {
+    return cmd_revpol;
   }
 
   fdebug("nomatch!\n");
