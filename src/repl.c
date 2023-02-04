@@ -1,7 +1,9 @@
 // This file contains a simple interpreter.
+#define _GNU_SOURCE
+#include <errno.h>
 
-#include "repl.h"
 #include "hcr.h"
+#include "repl.h"
 #include <bits/getopt_core.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,7 +64,8 @@ void eval(char *cmdline) {
   int argc;
   pid_t pid;
 
-  parseline(cmdline, argv, &argc);
+  if (parseline(cmdline, argv, &argc))
+    return;
 
   if (builtinCmd(argv[0]))
     return;
@@ -102,6 +105,7 @@ int main(int argc, char **argv) {
       m_debug = 1;
       break;
     default:
+      printf("%s: unknown command %c.\n", program_invocation_short_name, opt);
       break;
     }
   }

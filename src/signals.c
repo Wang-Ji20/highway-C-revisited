@@ -13,6 +13,9 @@ handler_t *Signal(int signum, handler_t *handler) {
 }
 /* signal handlers */
 
-void sigint_handler(int sig) { write(STDERR_FILENO, "SIGINT\n", 8); }
+void sigint_handler(int sig) {
+  assert(sig == SIGINT);
+  write(STDERR_FILENO, "SIGINT\n", 8);
+}
 
 void registerSIGHNDs() { Signal(SIGINT, sigint_handler); }

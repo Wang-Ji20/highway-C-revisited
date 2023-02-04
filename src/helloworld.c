@@ -6,7 +6,7 @@ int hello() {
 }
 
 void cmd_hello(int argc, char **argv) {
-  fdebug("call command hello");
+  fdebug("call command hello %s, %d", argv[0], argc);
   hello();
   exit(hello());
 }

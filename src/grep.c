@@ -79,6 +79,6 @@ int grep(char *pattern) {
 }
 
 void cmd_grep(int argc, char **argv) {
-  grep(argv[1]);
+  grep(argv[argc - 1]);
   exit(EXIT_SUCCESS);
 }
