@@ -18,9 +18,9 @@ void quicksort(int v[], int n) {
   swap(v, 0, rand() % n);
   last = 0;
   for (i = 1; i < n; i++)
-    if(v[i] < v[0])
+    if (v[i] < v[0])
       swap(v, ++last, i);
   swap(v, 0, last);
   quicksort(v, last);
-  quicksort(v+last+1, n-last-1);
+  quicksort(v + last + 1, n - last - 1);
 }

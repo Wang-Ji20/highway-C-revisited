@@ -29,6 +29,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 # The -MMD and -MP flags together generate Makefiles for us!
 # These files will have .d instead of .o as the output.
 FORMAT := clang-format
+TIDY := clang-tidy
 
 # The final build step.
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
@@ -38,6 +39,7 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
 	$(FORMAT) -i $<
+	$(TIDY) $< -checks=-*,clang-analyzer-*
 	$(CC) $(CFLAGS) -c $< -o $@
 
 

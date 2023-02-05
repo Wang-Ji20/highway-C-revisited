@@ -75,6 +75,7 @@ void eval(char *cmdline) {
     sfindFunc(argv[0])(argc, argv);
     fflush(stdout);
   }
+  fdebug("child pid %d!\n", pid);
   Wait(NULL);
   fflush(stdout);
 }

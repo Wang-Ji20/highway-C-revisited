@@ -3,10 +3,8 @@
     K & R
 
     - Learn examples in The C Programming Language
-    - Write a REPL to call functions
 
 -- PART B:
-    CSAPP
     TEXT EDITOR
     DATABASE
 

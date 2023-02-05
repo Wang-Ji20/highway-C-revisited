@@ -12,7 +12,7 @@ size_t readarg_num(usageFunc *uf) {
   int olderrno = errno;
   errno = 0;
 
-  n = strtol(optarg, NULL, 10);
+  n = strtol(optarg, &endptr, 10);
   if (errno) {
     missing_args(uf);
   }

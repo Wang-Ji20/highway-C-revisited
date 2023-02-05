@@ -4,4 +4,4 @@ This Repo roughly follows many prestigious C language books, aiming to improve C
 
 ./src --- source code
 
-./doc --- document
+./doc --- notes and documents

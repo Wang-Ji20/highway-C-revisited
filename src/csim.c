@@ -207,11 +207,11 @@ int read_trace_entry(FILE *f, trace_t *trace) {
 
     default:
       fprintf(stderr, "bad instruction type\n");
-      return 0;
+      return -1;
     }
   } else {
     fprintf(stderr, "bad instruction type\n");
-    return 0;
+    return -1;
   }
   peek += 2;
 
@@ -263,8 +263,7 @@ void cmd_csim(int argc, char *argv[]) {
   size_t opt;
   FILE *traceFile;
 
-  opt = g_verbose = g_asso = g_blockBits = g_curTimestamp = g_setBits =
-      g_debug = 0;
+  g_verbose = g_asso = g_blockBits = g_curTimestamp = g_setBits = g_debug = 0;
 
   g_progName = argv[0];
 

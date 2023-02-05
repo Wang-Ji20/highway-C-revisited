@@ -3,7 +3,7 @@
 /* remove all comments and check parenthesis integrity */
 void CChecker(FILE *fin) {
   int brack, brace, quote, paren, c;
-  brace = brack = quote = paren = c = 0;
+  brace = brack = quote = paren = 0;
 
   enum cc_state {
     CCK_FILE,

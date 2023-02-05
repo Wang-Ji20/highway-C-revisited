@@ -4,7 +4,7 @@
 void wc(FILE *fin) {
   int lines = 0, words = 0, chars = 0, c = 0;
 
-  enum wc_state { WC_OUT, WC_IN } state;
+  enum wc_state { WC_OUT, WC_IN } state = WC_OUT;
 
   while ((c = fgetc(fin)) != EOF) {
     chars++;
