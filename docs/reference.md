@@ -4,6 +4,8 @@
 
     [1] The C Programming Language（ K & R )
 
+    配合    http://www.eskimo.com/~scs/cclass/krnotes/top.html
+
     [2] The Practice of Programming
 
     [3] The Linux Programming Interface
@@ -12,21 +14,17 @@
 
     [5] UNIX Network Programming
 
-
 和 C 语言相关的一些标准、文章、博客、talk 的合集：
 
     http://www.lysator.liu.se/c
-
 
 一个 C++ 网站的 C reference：
 
     https://en.cppreference.com/w/c
 
-
 Glibc 的参考手册：
 
     https://www.gnu.org/software/libc/manual/html_mono/libc.html
-
 
 clang 的参考手册：
 

@@ -26,3 +26,13 @@ int trim(char s[]) {
 
   return n;
 }
+/*
+
+// K&R 5.5
+// a very compact strcpy implentation
+void strcpy(char* s, char* t) {
+  while (*s++ = *t++)
+    ;
+}
+
+*/
