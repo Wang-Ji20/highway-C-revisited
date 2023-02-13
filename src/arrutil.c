@@ -30,6 +30,7 @@ int trim(char s[]) {
 
 // K&R 5.5
 // a very compact strcpy implentation
+
 void strcpy(char* s, char* t) {
   while (*s++ = *t++)
     ;

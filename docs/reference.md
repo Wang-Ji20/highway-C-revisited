@@ -30,4 +30,4 @@ clang 的参考手册：
 
     https://clang.llvm.org/docs/UsersManual.html
 
-使用 clangd 作为 vscode 的 language server，用 clang-format 格式化，用 clang-tidy 检查错误。
+使用 clangd 作为 vscode 的 language server，用 clang-format 格式化.

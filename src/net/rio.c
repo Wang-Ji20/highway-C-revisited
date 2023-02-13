@@ -1,10 +1,10 @@
 #include "rio.h"
 #include <string.h>
 
-ssize_t rio_readn(int fd, void* usrbuf, size_t n) {
+ssize_t rio_readn(int fd, void *usrbuf, size_t n) {
   size_t nleft = n;
   ssize_t nread;
-  char* bufp = usrbuf;
+  char *bufp = usrbuf;
 
   while (nleft > 0) {
     if ((nread = read(fd, bufp, nleft)) < 0) {
@@ -22,10 +22,10 @@ ssize_t rio_readn(int fd, void* usrbuf, size_t n) {
   return (n - nleft);
 }
 
-ssize_t rio_writen(int fd, void* usrbuf, size_t n) {
+ssize_t rio_writen(int fd, void *usrbuf, size_t n) {
   size_t nleft = n;
   ssize_t nwritten;
-  char* bufp = usrbuf;
+  char *bufp = usrbuf;
 
   while (nleft > 0) {
     if ((nwritten = write(fd, bufp, nleft)) <= 0) {
@@ -41,7 +41,7 @@ ssize_t rio_writen(int fd, void* usrbuf, size_t n) {
   return n;
 }
 
-ssize_t rio_read(rio_t *rp, char* usrbuf, size_t n) {
+ssize_t rio_read(rio_t *rp, char *usrbuf, size_t n) {
   int cnt;
 
   while (rp->rio_cnt <= 0) {
@@ -75,7 +75,7 @@ void rio_readinitb(rio_t *rp, int fd) {
 ssize_t rio_readnb(rio_t *rp, void *usrbuf, size_t n) {
   size_t nleft = n;
   ssize_t nread;
-  char* bufp = usrbuf;
+  char *bufp = usrbuf;
 
   while (nleft > 0) {
     if ((nread = rio_read(rp, bufp, nleft)) < 0) {
@@ -112,5 +112,5 @@ ssize_t rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen) {
     }
   }
   *bufp = '\0';
-  return n-1;
+  return n - 1;
 }

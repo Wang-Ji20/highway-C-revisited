@@ -1,12 +1,6 @@
-
--- PART A:
-    K & R
-
-    - Learn examples in The C Programming Language
-
--- PART B:
-    TEXT EDITOR
-    DATABASE
+    proxy server from my csapp lab
+    TEXT EDITOR from https://viewsourcecode.org/snaptoken/kilo/
+    DATABASE https://cstack.github.io/db_tutorial/
 
     pending...
     

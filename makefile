@@ -39,7 +39,6 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
 	$(FORMAT) -i $<
-	$(TIDY) $< -checks=-*,clang-analyzer-*
 	$(CC) $(CFLAGS) -c $< -o $@
 
 

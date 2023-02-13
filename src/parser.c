@@ -12,9 +12,9 @@
 const size_t MAXLINE = 1024;
 const size_t MAXARGS = 32;
 
-/* lexer read byte string from iterator
- *  return the first element of token
- *  set delim pointer to the last element of tokrn
+/* lexer read byte string from iterator.
+ *  return the first element of token.
+ *  set delim pointer to the last element of token
  */
 char *lexer(char *iterator, char **delim) {
   /* skip all spaces */
